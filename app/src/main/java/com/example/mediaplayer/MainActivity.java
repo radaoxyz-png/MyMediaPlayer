@@ -10,7 +10,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.MediaStore;
-import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
@@ -65,7 +64,6 @@ public class MainActivity extends Activity {
             requestMediaPermission();
         }
 
-        // PLAY / PAUSE
         playButton.setOnClickListener(v -> {
 
             if (mediaPlayer == null) {
@@ -86,7 +84,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        // PREVIOUS
         previousButton.setOnClickListener(v -> {
 
             if (songUris.isEmpty()) {
@@ -98,7 +95,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        // NEXT
         nextButton.setOnClickListener(v -> {
 
             if (songUris.isEmpty()) {
@@ -110,7 +106,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        // SEEK BAR
         seekBar.setOnSeekBarChangeListener(
                 new SeekBar.OnSeekBarChangeListener() {
 
@@ -249,10 +244,146 @@ public class MainActivity extends Activity {
             }
 
         } catch (Exception e) {
+
             e.printStackTrace();
         }
 
         ArrayAdapter<String> adapter =
                 new ArrayAdapter<>(
                         this,
-                        android.R.layout.simple_list_item_
+                        android.R.layout.simple_list_item_1,
+                        songNames
+                );
+
+        mediaList.setAdapter(adapter);
+
+        mediaList.setOnItemClickListener(
+                (parent, view, position, id) -> {
+
+                    playSong(position);
+                }
+        );
+    }
+
+    private void playSong(int position) {
+
+        if (position < 0 ||
+                position >= songUris.size()) {
+
+            return;
+        }
+
+        currentSong = position;
+
+        if (mediaPlayer != null) {
+
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+
+        try {
+
+            mediaPlayer = MediaPlayer.create(
+                    this,
+                    songUris.get(position)
+            );
+
+            if (mediaPlayer == null) {
+                return;
+            }
+
+            songText.setText(
+                    songNames.get(position)
+            );
+
+            int duration = mediaPlayer.getDuration();
+
+            seekBar.setMax(duration);
+
+            totalTimeText.setText(
+                    formatTime(duration)
+            );
+
+            currentTimeText.setText("0:00");
+
+            mediaPlayer.setOnCompletionListener(
+                    mp -> {
+
+                        playButton.setText("▶");
+
+                        seekBar.setProgress(0);
+
+                        currentTimeText.setText("0:00");
+
+                        if (currentSong < songUris.size() - 1) {
+
+                            playSong(currentSong + 1);
+                        }
+                    }
+            );
+
+            mediaPlayer.start();
+
+            playButton.setText("⏸");
+
+            updateSeekBar();
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+        }
+    }
+
+    private void updateSeekBar() {
+
+        if (mediaPlayer != null &&
+                mediaPlayer.isPlaying()) {
+
+            int position =
+                    mediaPlayer.getCurrentPosition();
+
+            seekBar.setProgress(position);
+
+            currentTimeText.setText(
+                    formatTime(position)
+            );
+
+            handler.postDelayed(
+                    this::updateSeekBar,
+                    500
+            );
+        }
+    }
+
+    private String formatTime(int milliseconds) {
+
+        int totalSeconds =
+                milliseconds / 1000;
+
+        int minutes =
+                totalSeconds / 60;
+
+        int seconds =
+                totalSeconds % 60;
+
+        return String.format(
+                "%d:%02d",
+                minutes,
+                seconds
+        );
+    }
+
+    @Override
+    protected void onDestroy() {
+
+        handler.removeCallbacksAndMessages(null);
+
+        if (mediaPlayer != null) {
+
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+
+        super.onDestroy();
+    }
+}
